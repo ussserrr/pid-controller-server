@@ -1,0 +1,9 @@
+# VSCode
+.vscode/settings.json
+
+# ESP-IDF
+build
+sdkconfig.old
+
+# macOS-specific
+.DS_Store
