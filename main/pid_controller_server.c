@@ -18,6 +18,7 @@
 #include <lwip/netdb.h>
 
 #include "../../my_wifi.h"  // hide personal data from repository
+// #include "commandmanager.h"
 
 
 /*
@@ -26,7 +27,12 @@
 #define EXAMPLE_WIFI_SSID MY_SSID
 #define EXAMPLE_WIFI_PASS MY_PSWD
 
-#define UDP_PORT 3333
+#define UDP_PORT 1200
+
+
+#define REQUEST_RESPONSE_BUF_SIZE (sizeof(char)+2*(sizeof(float)))  // same size for both requests and responses
+#define SERVER_TASK_SLEEP_TIME_MS 5
+#define NO_MSG_TIMEOUT_SECONDS 15.0
 
 
 
@@ -77,7 +83,7 @@ static esp_err_t event_handler(void *ctx, system_event_t *event) {
 
 static void udp_server_task(void *pvParameters) {
     
-    char rx_buffer[128];
+    char buf[REQUEST_RESPONSE_BUF_SIZE];
     char addr_str[128];
     int addr_family;
     int ip_protocol;
@@ -85,23 +91,23 @@ static void udp_server_task(void *pvParameters) {
 
     while (1) {
 
-#ifdef CONFIG_IPV4
-        struct sockaddr_in destAddr;
-        destAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-        destAddr.sin_family = AF_INET;
-        destAddr.sin_port = htons(UDP_PORT);
-        addr_family = AF_INET;
-        ip_protocol = IPPROTO_IP;
-        inet_ntoa_r(destAddr.sin_addr, addr_str, sizeof(addr_str) - 1);
-#else // IPV6
-        struct sockaddr_in6 destAddr;
-        bzero(&destAddr.sin6_addr.un, sizeof(destAddr.sin6_addr.un));
-        destAddr.sin6_family = AF_INET6;
-        destAddr.sin6_port = htons(UDP_PORT);
-        addr_family = AF_INET6;
-        ip_protocol = IPPROTO_IPV6;
-        inet6_ntoa_r(destAddr.sin6_addr, addr_str, sizeof(addr_str) - 1);
-#endif
+        #ifdef CONFIG_IPV4
+            struct sockaddr_in destAddr;
+            destAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+            destAddr.sin_family = AF_INET;
+            destAddr.sin_port = htons(UDP_PORT);
+            addr_family = AF_INET;
+            ip_protocol = IPPROTO_IP;
+            inet_ntoa_r(destAddr.sin_addr, addr_str, sizeof(addr_str) - 1);
+        #else  // IPV6
+            struct sockaddr_in6 destAddr;
+            bzero(&destAddr.sin6_addr.un, sizeof(destAddr.sin6_addr.un));
+            destAddr.sin6_family = AF_INET6;
+            destAddr.sin6_port = htons(UDP_PORT);
+            addr_family = AF_INET6;
+            ip_protocol = IPPROTO_IPV6;
+            inet6_ntoa_r(destAddr.sin6_addr, addr_str, sizeof(addr_str) - 1);
+        #endif
 
         int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
         if (sock < 0) {
@@ -119,35 +125,54 @@ static void udp_server_task(void *pvParameters) {
 
         while (1) {
 
-            ESP_LOGI(TAG, "Waiting for data");
-            struct sockaddr_in6 sourceAddr; // large enough for both IPv4 or IPv6
-            socklen_t socklen = sizeof(sourceAddr);
-            int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr *)&sourceAddr, &socklen);
-
-            // error occured during receiving
-            if (len < 0) {
-                ESP_LOGE(TAG, "recvfrom failed: errno %d", errno);
-                break;
+            /* Check for available data in socket. Make sure you have CONFIG_LWIP_SO_RCVBUF option set to 'y'
+            in your sdkconfig */
+            int data_len = 0;
+            err = ioctl(sock, FIONREAD, &data_len);
+            if (err < 0) {
+                ESP_LOGE(TAG, "ioctl: errno %d", errno);
             }
-            // data received
-            else {
-                // get the sender's ip address as string
-                if (sourceAddr.sin6_family == PF_INET) {
-                    inet_ntoa_r(((struct sockaddr_in *)&sourceAddr)->sin_addr.s_addr, addr_str, sizeof(addr_str) - 1);
-                }
-                else if (sourceAddr.sin6_family == PF_INET6) {
-                    inet6_ntoa_r(sourceAddr.sin6_addr, addr_str, sizeof(addr_str) - 1);
-                }
+            if (data_len > 0) {
 
-                rx_buffer[len] = 0; // null-terminate whatever we received and treat like a string...
-                ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str);
-                ESP_LOGI(TAG, "%s", rx_buffer);
+                /*
+                *  recvfrom: receive a UDP datagram from a client
+                *  len: message byte size
+                */
+                ESP_LOGI(TAG, "New data");
+                struct sockaddr_in6 sourceAddr;  // large enough for both IPv4 or IPv6
+                socklen_t socklen = sizeof(sourceAddr);
+                int len = recvfrom(sock, buf, REQUEST_RESPONSE_BUF_SIZE, 0, (struct sockaddr *)&sourceAddr, &socklen);
 
-                int err = sendto(sock, rx_buffer, len, 0, (struct sockaddr *)&sourceAddr, sizeof(sourceAddr));
-                if (err < 0) {
-                    ESP_LOGE(TAG, "Error occured during sending: errno %d", errno);
+                // error occured during receiving
+                if (len < 0) {
+                    ESP_LOGE(TAG, "recvfrom failed: errno %d", errno);
                     break;
                 }
+                // data received
+                else {
+                    // get the sender's ip address as string
+                    if (sourceAddr.sin6_family == PF_INET) {
+                        inet_ntoa_r(((struct sockaddr_in *)&sourceAddr)->sin_addr.s_addr, addr_str, sizeof(addr_str) - 1);
+                    }
+                    else if (sourceAddr.sin6_family == PF_INET6) {
+                        inet6_ntoa_r(sourceAddr.sin6_addr, addr_str, sizeof(addr_str) - 1);
+                    }
+
+                    // buf[len] = 0;  // null-terminate whatever we received and treat like a string...
+                    ESP_LOGI(TAG, "Received %d bytes from %s", len, addr_str);
+                    // ESP_LOGI(TAG, "%s", buf);
+
+                    // process_request(buf);
+
+                    int err = sendto(sock, buf, len, 0, (struct sockaddr *)&sourceAddr, sizeof(sourceAddr));
+                    if (err < 0) {
+                        ESP_LOGE(TAG, "Error occured during sending: errno %d", errno);
+                        break;
+                    }
+                }
+            }
+            else {
+                vTaskDelay(15/portTICK_PERIOD_MS);
             }
         }
 
