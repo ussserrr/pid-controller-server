@@ -12,6 +12,9 @@
 #include "esp_event_loop.h"
 #include "nvs_flash.h"
 
+// #include "driver/gpio.h"
+// #include "driver/adc.h"
+
 #include "lwip/err.h"
 #include "lwip/sockets.h"
 #include "lwip/sys.h"
@@ -237,6 +240,11 @@ void app_main() {
     ESP_LOGI(TAG, "Waiting for AP connection...");
     xEventGroupWaitBits(wifi_event_group, bits, false, true, portMAX_DELAY);
     ESP_LOGI(TAG, "Connected to AP");
+
+
+    adc1_config_width(ADC_WIDTH_BIT_12);
+    adc1_config_channel_atten(ADC1_CHANNEL_0, ADC_ATTEN_DB_0);
+    adc1_config_channel_atten(ADC1_CHANNEL_1, ADC_ATTEN_DB_0);
 
 
     xTaskCreate(udp_server_task, "udp_server_task", 4096, NULL, 5, NULL);

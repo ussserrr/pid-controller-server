@@ -39,19 +39,22 @@ void _stream_task(void *data) {
     unsigned char stream_buf[STREAM_BUF_SIZE];
     stream_buf[0] = STREAM_PREFIX;
 
-    double x = 0.0;
-    double const dx = 0.1;
+    // double x = 0.0;
+    // double const dx = 0.1;
 
     ESP_LOGI(TAG, "Stream task started");
 
     while (1) {
         if (stream_run) {
 
-            if (x > (2.0 * M_PI))
-                x = 0.0;
-            stream_values[0] = (float)sin(x);  // Process Variable
-            stream_values[1] = (float)cos(x);  // Controller Output
-            x = x + dx;
+            // if (x > (2.0 * M_PI))
+            //     x = 0.0;
+            // stream_values[0] = (float)sin(x);  // Process Variable
+            // stream_values[1] = (float)cos(x);  // Controller Output
+            // x = x + dx;
+
+            stream_values[0] = adc1_get_raw(ADC1_CHANNEL_0);
+            stream_values[1] = adc1_get_raw(ADC1_CHANNEL_1);
 
             memcpy(&stream_buf[1], stream_values, 2*sizeof(float));
             

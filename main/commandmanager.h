@@ -19,6 +19,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "driver/adc.h"
+
 #include "lwip/sockets.h"
 
 #include "esp_log.h"
