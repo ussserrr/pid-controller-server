@@ -1,6 +1,7 @@
 /*
  *  PID controller server
  */
+
 #include <string.h>
 #include <sys/param.h>
 #include "freertos/FreeRTOS.h"
@@ -9,7 +10,6 @@
 #include "esp_system.h"
 #include "esp_wifi.h"
 #include "esp_event_loop.h"
-#include "esp_log.h"
 #include "nvs_flash.h"
 
 #include "lwip/err.h"
@@ -18,7 +18,7 @@
 #include <lwip/netdb.h>
 
 #include "../../my_wifi.h"  // hide personal data from repository
-// #include "commandmanager.h"
+#include "commandmanager.h"
 
 
 /*
@@ -31,7 +31,7 @@
 
 
 #define REQUEST_RESPONSE_BUF_SIZE (sizeof(char)+2*(sizeof(float)))  // same size for both requests and responses
-#define SERVER_TASK_SLEEP_TIME_MS 5
+#define SERVER_TASK_SLEEP_TIME_MS 20  // values smaller than 20 ms lead to not working no_msg_timeout
 #define NO_MSG_TIMEOUT_SECONDS 15.0
 
 
@@ -44,7 +44,7 @@ static EventGroupHandle_t wifi_event_group;
 const int IPV4_GOTIP_BIT = BIT0;
 const int IPV6_GOTIP_BIT = BIT1;
 
-static const char *TAG = "pid-controller-server";
+const char *TAG = "pid-controller-server";
 
 static esp_err_t event_handler(void *ctx, system_event_t *event) {
 
@@ -81,6 +81,10 @@ static esp_err_t event_handler(void *ctx, system_event_t *event) {
 
 
 
+int sock;
+struct sockaddr_in6 sourceAddr;
+socklen_t socklen;
+
 static void udp_server_task(void *pvParameters) {
     
     char buf[REQUEST_RESPONSE_BUF_SIZE];
@@ -109,7 +113,7 @@ static void udp_server_task(void *pvParameters) {
             inet6_ntoa_r(destAddr.sin6_addr, addr_str, sizeof(addr_str) - 1);
         #endif
 
-        int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
+        sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
         if (sock < 0) {
             ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
             break;
@@ -122,30 +126,38 @@ static void udp_server_task(void *pvParameters) {
         }
         ESP_LOGI(TAG, "Socket binded");
 
+        int no_msg_cnt = 0;
+        int const no_msg_cnt_warn = NO_MSG_TIMEOUT_SECONDS*(1000.0/SERVER_TASK_SLEEP_TIME_MS);
+        bool is_stream_stop = false;
 
         while (1) {
+
+            if ((no_msg_cnt >= no_msg_cnt_warn) && (!is_stream_stop)) {
+                ESP_LOGI(TAG, "No incoming messages within a timeout, stop the stream");
+                stream_stop();
+                is_stream_stop = true;
+            }
 
             /* Check for available data in socket. Make sure you have CONFIG_LWIP_SO_RCVBUF option set to 'y'
             in your sdkconfig */
             int data_len = 0;
             err = ioctl(sock, FIONREAD, &data_len);
-            if (err < 0) {
-                ESP_LOGE(TAG, "ioctl: errno %d", errno);
-            }
+            // if (err < 0) {
+            //     ESP_LOGE(TAG, "ioctl: errno %d", errno);
+            // }
             if (data_len > 0) {
-
                 /*
                 *  recvfrom: receive a UDP datagram from a client
                 *  len: message byte size
                 */
-                ESP_LOGI(TAG, "New data");
-                struct sockaddr_in6 sourceAddr;  // large enough for both IPv4 or IPv6
-                socklen_t socklen = sizeof(sourceAddr);
+                // ESP_LOGI(TAG, "New data");
+                // struct sockaddr_in6 sourceAddr;  // large enough for both IPv4 or IPv6
+                socklen = sizeof(sourceAddr);
                 int len = recvfrom(sock, buf, REQUEST_RESPONSE_BUF_SIZE, 0, (struct sockaddr *)&sourceAddr, &socklen);
 
                 // error occured during receiving
                 if (len < 0) {
-                    ESP_LOGE(TAG, "recvfrom failed: errno %d", errno);
+                    // ESP_LOGE(TAG, "recvfrom failed: errno %d", errno);
                     break;
                 }
                 // data received
@@ -159,20 +171,29 @@ static void udp_server_task(void *pvParameters) {
                     }
 
                     // buf[len] = 0;  // null-terminate whatever we received and treat like a string...
-                    ESP_LOGI(TAG, "Received %d bytes from %s", len, addr_str);
+                    // ESP_LOGI(TAG, "Received %d bytes from %s", len, addr_str);
                     // ESP_LOGI(TAG, "%s", buf);
 
-                    // process_request(buf);
+                    process_request((unsigned char *)buf);
 
-                    int err = sendto(sock, buf, len, 0, (struct sockaddr *)&sourceAddr, sizeof(sourceAddr));
-                    if (err < 0) {
-                        ESP_LOGE(TAG, "Error occured during sending: errno %d", errno);
-                        break;
-                    }
+                    sendto(sock, buf, REQUEST_RESPONSE_BUF_SIZE, 0, (struct sockaddr *)&sourceAddr, socklen);
+                    // if (err < 0) {
+                    //     ESP_LOGE(TAG, "Error occured during sending: errno %d", errno);
+                    //     break;
+                    // }
+
+                    memset(buf, 0, REQUEST_RESPONSE_BUF_SIZE);
+
+                    no_msg_cnt = 0;
+                    is_stream_stop = false;                    
                 }
             }
+            // No available data
             else {
-                vTaskDelay(15/portTICK_PERIOD_MS);
+                if (!is_stream_stop) {
+                    no_msg_cnt++;
+                }
+                vTaskDelay(pdMS_TO_TICKS(SERVER_TASK_SLEEP_TIME_MS));
             }
         }
 
@@ -224,5 +245,6 @@ void app_main() {
     ESP_LOGI(TAG, "Connected to AP");
 
 
-    xTaskCreate(udp_server_task, "udp_server", 4096, NULL, 5, NULL);
+    xTaskCreate(udp_server_task, "udp_server_task", 4096, NULL, 5, NULL);
+    xTaskCreate(_stream_thread, "_stream_thread", 4096, NULL, 4, NULL);
 }
