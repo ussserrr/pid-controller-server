@@ -17,15 +17,10 @@
 #include "lwip/sys.h"
 #include <lwip/netdb.h>
 
-#include "../../my_wifi.h"  // hide personal data from repository
+#include "../../my_wifi.h"  // hide personal data from the repository
 #include "commandmanager.h"
 
 
-/*
- *  From my_wifi.h
- */
-#define EXAMPLE_WIFI_SSID MY_SSID
-#define EXAMPLE_WIFI_PASS MY_PSWD
 
 #define UDP_PORT 1200
 
@@ -103,7 +98,7 @@ static void udp_server_task(void *pvParameters) {
             addr_family = AF_INET;
             ip_protocol = IPPROTO_IP;
             inet_ntoa_r(destAddr.sin_addr, addr_str, sizeof(addr_str) - 1);
-        #else  // IPV6
+        #else // IPV6
             struct sockaddr_in6 destAddr;
             bzero(&destAddr.sin6_addr.un, sizeof(destAddr.sin6_addr.un));
             destAddr.sin6_family = AF_INET6;
@@ -141,7 +136,7 @@ static void udp_server_task(void *pvParameters) {
             /* Check for available data in socket. Make sure you have CONFIG_LWIP_SO_RCVBUF option set to 'y'
             in your sdkconfig */
             int data_len = 0;
-            err = ioctl(sock, FIONREAD, &data_len);
+            ioctl(sock, FIONREAD, &data_len);
             // if (err < 0) {
             //     ESP_LOGE(TAG, "ioctl: errno %d", errno);
             // }
@@ -162,7 +157,7 @@ static void udp_server_task(void *pvParameters) {
                 }
                 // data received
                 else {
-                    // get the sender's ip address as string
+                    // get the sender's ip address
                     if (sourceAddr.sin6_family == PF_INET) {
                         inet_ntoa_r(((struct sockaddr_in *)&sourceAddr)->sin_addr.s_addr, addr_str, sizeof(addr_str) - 1);
                     }
@@ -170,7 +165,6 @@ static void udp_server_task(void *pvParameters) {
                         inet6_ntoa_r(sourceAddr.sin6_addr, addr_str, sizeof(addr_str) - 1);
                     }
 
-                    // buf[len] = 0;  // null-terminate whatever we received and treat like a string...
                     // ESP_LOGI(TAG, "Received %d bytes from %s", len, addr_str);
                     // ESP_LOGI(TAG, "%s", buf);
 
@@ -198,7 +192,7 @@ static void udp_server_task(void *pvParameters) {
         }
 
         if (sock != -1) {
-            ESP_LOGE(TAG, "Shutting down socket and restarting...");
+            ESP_LOGE(TAG, "Shutting down the socket and restarting...");
             shutdown(sock, 0);
             close(sock);
         }
@@ -226,8 +220,8 @@ void app_main() {
     ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
     wifi_config_t wifi_config = {
         .sta = {
-            .ssid = EXAMPLE_WIFI_SSID,
-            .password = EXAMPLE_WIFI_PASS,
+            .ssid = MY_SSID,
+            .password = MY_PSWD,
         },
     };
     ESP_LOGI(TAG, "Setting WiFi configuration SSID %s...", wifi_config.sta.ssid);
@@ -246,5 +240,5 @@ void app_main() {
 
 
     xTaskCreate(udp_server_task, "udp_server_task", 4096, NULL, 5, NULL);
-    xTaskCreate(_stream_thread, "_stream_thread", 4096, NULL, 4, NULL);
+    xTaskCreate(_stream_task, "_stream_task", 4096, NULL, 4, NULL);
 }

@@ -13,11 +13,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>  // for memset()
-// #include <unistd.h>
-// #include <sys/socket.h>
-// #include <netinet/in.h>
-// #include <pthread.h>
-// #include <signal.h>
 #include <stdbool.h>
 #include <math.h>
 
@@ -41,9 +36,6 @@ extern const char *TAG;
 extern int sock;
 extern struct sockaddr_in6 sourceAddr;  // client address
 extern socklen_t socklen;  // byte size of client's address
-
-// extern pthread_mutex_t sock_mutex;
-// extern pthread_t stream_thread_id;
 
 
 enum {
@@ -96,7 +88,7 @@ typedef struct response {
 
 void error(char *msg);
 
-void _stream_thread(void *data);
+void _stream_task(void *data);
 void stream_start(void);
 void stream_stop(void);
 

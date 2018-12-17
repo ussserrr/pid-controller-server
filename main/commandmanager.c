@@ -30,21 +30,11 @@ static float stream_values[2];
 #define STREAM_BUF_SIZE (sizeof(char)+2*sizeof(float))
 #define STREAM_THREAD_SLEEP_TIME_MS 20
 
-// pthread_t stream_thread_id;
-// pthread_mutex_t sock_mutex;
-
-// use 'volatile' keyword to prevent compiler of deleting 'while' loop in _stream_thread()
 static bool stream_run = false;
 
 static int points_cnt = 0;
 
-void _stream_thread(void *data) {
-
-    // struct timespec pv_thread_delay = {
-    //     /* seconds */      .tv_sec = 0,
-    //     // * nanoseconds */  .tv_nsec = 16666667  // 60 FPS
-    //     /* nanoseconds */  .tv_nsec = STREAM_THREAD_SLEEP_TIME_MS * 1000000
-    // };
+void _stream_task(void *data) {
 
     unsigned char stream_buf[STREAM_BUF_SIZE];
     stream_buf[0] = STREAM_PREFIX;
@@ -52,13 +42,12 @@ void _stream_thread(void *data) {
     double x = 0.0;
     double const dx = 0.1;
 
-    ESP_LOGI(TAG, "Stream thread started");
+    ESP_LOGI(TAG, "Stream task started");
 
     while (1) {
         if (stream_run) {
-            // pthread_mutex_lock(&sock_mutex);
 
-            if (x > 2.0*M_PI)
+            if (x > (2.0 * M_PI))
                 x = 0.0;
             stream_values[0] = (float)sin(x);  // Process Variable
             stream_values[1] = (float)cos(x);  // Controller Output
@@ -69,12 +58,10 @@ void _stream_thread(void *data) {
             // datagram sockets support multiple readers/writers even simultaneously so we do not need any mutex in
             // this simple case
             sendto(sock, (const void *)stream_buf, STREAM_BUF_SIZE, 0, (const struct sockaddr *)&sourceAddr, socklen);
-            // if (n < 0)
+            // if (len < 0)
             //     error("ERROR on sendto");
 
             points_cnt++;
-
-            // pthread_mutex_unlock(&sock_mutex);
         }
 
         vTaskDelay(STREAM_THREAD_SLEEP_TIME_MS/portTICK_PERIOD_MS);
@@ -98,7 +85,7 @@ void stream_stop(void) {
 
 
 /*
- *  Sample values, not constants so client can read/write them
+ *  Sample values, not constants so client can both read/write them
  */
 static float setpoint = 1238.0f;
 static float kP = 19.4f;
@@ -138,7 +125,6 @@ int process_request(unsigned char *request_response_buf) {
     // printf("VAR CMD: 0x%X\n", var_cmd);
 
     if (request.opcode == OPCODE_read) {
-        // printf("read: ");
         // 'read' request from the client - we do not need cells allocated for values (doesn't care whether they were
         // supplied or not). Instead, we will use them to return values
         memset(&request_response_buf[1], 0, 2*sizeof(float));
@@ -203,9 +189,7 @@ int process_request(unsigned char *request_response_buf) {
         }
     }
     
-    else {
-        // printf("write: ");
-        
+    else {        
         switch (request.var_cmd) {
             case VAR_setpoint:
                 ESP_LOGI(tag_write, "VAR_setpoint");
