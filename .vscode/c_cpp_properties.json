@@ -7,7 +7,7 @@
                 "~/esp/esp-idf/components/**",
                 "~/esp/esp-idf/include/**",
                 "~/esp",
-                "${workspaceFolder}/main"
+                "${workspaceFolder}/**"
             ],
             "compilerPath": "~/esp/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc",
             "cStandard": "c11",

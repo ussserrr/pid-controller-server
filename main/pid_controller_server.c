@@ -12,8 +12,7 @@
 #include "esp_event_loop.h"
 #include "nvs_flash.h"
 
-// #include "driver/gpio.h"
-// #include "driver/adc.h"
+#include "driver/adc.h"
 
 #include "lwip/err.h"
 #include "lwip/sockets.h"
@@ -242,6 +241,9 @@ void app_main() {
     ESP_LOGI(TAG, "Connected to AP");
 
 
+    /*
+     *  ADC setup
+     */
     adc1_config_width(ADC_WIDTH_BIT_12);
     adc1_config_channel_atten(ADC1_CHANNEL_0, ADC_ATTEN_DB_0);
     adc1_config_channel_atten(ADC1_CHANNEL_1, ADC_ATTEN_DB_0);
