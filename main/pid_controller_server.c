@@ -21,6 +21,7 @@
 
 #include "../../my_wifi.h"  // hide personal data from the repository
 #include "commandmanager.h"
+#include "pid.h"
 
 
 
@@ -247,6 +248,14 @@ void app_main() {
     adc1_config_width(ADC_WIDTH_BIT_12);
     adc1_config_channel_atten(ADC1_CHANNEL_0, ADC_ATTEN_DB_0);
     adc1_config_channel_atten(ADC1_CHANNEL_1, ADC_ATTEN_DB_0);
+
+
+    /*
+     *  PID setup
+     */
+    PIDdata pid_data;
+    ptrPIDdata p_pid_data = &pid_data;
+    PID_Init(p_pid_data);
 
 
     xTaskCreate(udp_server_task, "udp_server_task", 4096, NULL, 5, NULL);
