@@ -1,32 +1,56 @@
 #include "pid.h"
 
 
+PIDdata pid_defaults = {
+    .setpoint = 1234.0f,
+
+    .kP = 123.4f,
+    .kI = 12.34f,
+    .kD = 1.234f,
+
+    .Perrmin = -12345.0f,
+    .Perrmax = 12345.0f,
+    .Ierrmin = -54321.0f,
+    .Ierrmax = 54321.0f
+};
+ptrPIDdata p_pid_defaults = &pid_defaults;
+
+PIDdata pid_data;
+ptrPIDdata p_pid_data = &pid_data;
+
+
 void PID_Init(ptrPIDdata pPd) {
-    pPd->setpoint = 0.0f;
 
-    pPd->Kp = 0.0f;
-    pPd->Ki = 0.0f;
-    pPd->Kd = 0.0f;
+    // pPd->_input_prev = 0.0f;
 
-    pPd->Perr = 0.0f;
-    pPd->Ierr = 0.0f;
-    pPd->Derr = 0.0f;
+    // pPd->setpoint = 0.0f;
 
-    pPd->Perrmin = -1000.0f;
-    pPd->Perrmax = 1000.0f;
-    pPd->Ierrmin = -1000.0f;
-    pPd->Ierrmax = 1000.0f;
+    // pPd->kP = 0.0f;
+    // pPd->kI = 0.0f;
+    // pPd->kD = 0.0f;
+
+    // pPd->Perr = 0.0f;
+    // pPd->Ierr = 0.0f;
+    // pPd->Derr = 0.0f;
+
+    // pPd->Perrmin = -1000.0f;
+    // pPd->Perrmax = 1000.0f;
+    // pPd->Ierrmin = -1000.0f;
+    // pPd->Ierrmax = 1000.0f;
+
+    memcpy(pPd, p_pid_defaults, sizeof(PIDdata));
 }
 
 /*
- *  Set PID terms
+ *  Set coefficients
  */
-void PID_SetPID(ptrPIDdata pPd, float setpoint, float pidP, float pidI, float pidD) {
+void PID_Coefficients(ptrPIDdata pPd, float setpoint, float kP, float kI, float kD) {
+
     pPd->setpoint = setpoint;
 
-    pPd->Kp = pidP;
-    pPd->Ki = pidI;
-    pPd->Kd = pidD;
+    pPd->kP = kP;
+    pPd->kI = kI;
+    pPd->kD = kD;
 }
 
 
@@ -52,17 +76,15 @@ void PID_SetLimitsIerr(ptrPIDdata pPd, float Ierr_min, float Ierr_max) {
  *  Reset integral term accumulated error
  */
 void PID_ResetIerr(ptrPIDdata pPd) {
-    pPd->Ierr = 0;
+    pPd->Ierr = 0.0f;
 }
 
 
 /*
- *  PID control algorithm
+ *  PID control algorithm. If this function get called always at the same period, dt=1 can be used,
+ *  otherwise it should be calculated
  */
 float PID_Update(ptrPIDdata pPd, float input) {
-
-    // if this function get called always at the same period, dt=1 can be used, otherwise it should be calculated
-    static float inputprev = 0;
 
     // compute P error
     pPd->Perr = pPd->setpoint - input;
@@ -83,10 +105,10 @@ float PID_Update(ptrPIDdata pPd, float input) {
     }
 
     // compute D error
-    pPd->Derr = inputprev - input;
+    pPd->Derr = pPd->_input_prev - input;
 
     // record last value
-    inputprev = input;
+    pPd->_input_prev = input;
 
-    return ((pPd->Kp*pPd->Perr) + (pPd->Ki*pPd->Ierr) + (pPd->Kd*pPd->Derr));
+    return ((pPd->kP * pPd->Perr) + (pPd->kI * pPd->Ierr) + (pPd->kD * pPd->Derr));
 }

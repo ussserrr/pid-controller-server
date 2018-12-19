@@ -25,6 +25,8 @@
 
 #include "esp_log.h"
 
+#include "pid.h"
+
 // #include "sodium.h"
 
 

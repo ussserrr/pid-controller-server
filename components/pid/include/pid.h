@@ -2,32 +2,43 @@
 #define PID_H
 
 
+#include <string.h>
+
 
 typedef struct _PIDdata {
 
-    volatile float setpoint;
+    float _input_prev;
+
+    float setpoint;
 
     // PID factors
-    volatile float Kp;
-    volatile float Ki;
-    volatile float Kd;
+    float kP;
+    float kI;
+    float kD;
 
     // PID terms
-    volatile float Perr;
-    volatile float Ierr;
-    volatile float Derr;
+    float Perr;
+    float Ierr;
+    float Derr;
 
     // PID terms limits
-    volatile float Perrmin;
-    volatile float Perrmax;
-    volatile float Ierrmin;
-    volatile float Ierrmax;
+    float Perrmin;
+    float Perrmax;
+    float Ierrmin;
+    float Ierrmax;
 } PIDdata;
 typedef PIDdata *ptrPIDdata;
 
 
+// extern PIDdata pid_defaults;
+// extern ptrPIDdata p_pid_defaults;
+
+extern PIDdata pid_data;
+extern ptrPIDdata p_pid_data;
+
+
 void PID_Init(ptrPIDdata pPd);
-void PID_SetPID(ptrPIDdata pPd, float setpoint, float pidP, float pidI, float pidD);
+void PID_Coefficients(ptrPIDdata pPd, float setpoint, float kP, float kI, float kD);
 void PID_SetLimitsPerr(ptrPIDdata pPd, float Perr_min, float Perr_max);
 void PID_SetLimitsIerr(ptrPIDdata pPd, float Ierr_min, float Ierr_max);
 void PID_ResetIerr(ptrPIDdata pPd);

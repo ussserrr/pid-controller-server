@@ -24,7 +24,6 @@
 #include "pid.h"
 
 
-
 #define UDP_PORT 1200
 
 
@@ -253,9 +252,12 @@ void app_main() {
     /*
      *  PID setup
      */
-    PIDdata pid_data;
-    ptrPIDdata p_pid_data = &pid_data;
-    PID_Init(p_pid_data);
+    // p_pid_data = &pid_data;
+    PID_Init(p_pid_data);  // reset values
+    // memcpy(p_pid_data, p_pid_defaults, sizeof(pid_defaults));
+    // PID_SetLimitsPerr(p_pid_data);
+    // PID_SetLimitsIerr(p_pid_data);
+    // PID_SetPID(p_pid_data, );
 
 
     xTaskCreate(udp_server_task, "udp_server_task", 4096, NULL, 5, NULL);

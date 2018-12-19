@@ -146,7 +146,7 @@ int process_request(unsigned char *request_response_buf) {
 
             case VAR_setpoint:
                 ESP_LOGI(tag_read, "VAR_setpoint");
-                memcpy(&request_response_buf[1], &setpoint, sizeof(float));
+                memcpy(&request_response_buf[1], &(p_pid_data->setpoint), sizeof(float));
                 result = RESULT_ok;
                 break;
             case VAR_kP:
@@ -186,7 +186,7 @@ int process_request(unsigned char *request_response_buf) {
                 break;
 
             default:
-                ESP_LOGI(tag_read, "Unknown request");
+                ESP_LOGI(tag_read, "Unknown or incorrect request");
                 result = RESULT_error;
                 break;
         }
@@ -236,7 +236,7 @@ int process_request(unsigned char *request_response_buf) {
                 break;
 
             default:
-                ESP_LOGI(tag_write, "Unknown request");
+                ESP_LOGI(tag_write, "Unknown or incorrect request");
                 result = RESULT_error;
                 break;
         }
